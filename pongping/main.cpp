@@ -55,11 +55,7 @@ static void can_init() {
     // SJA1000 single-filter layout for standard frames:
     //   bits [31:21] = ID[10:0], bit 20 = RTR, bits [19:0] = don't care.
     //   acceptance_mask bit = 0 → must match, 1 → don't care.
-    twai_filter_config_t f_config = {
-        .acceptance_code = static_cast<uint32_t>(PING_ID) << 21,
-        .acceptance_mask = static_cast<uint32_t>(~(0x7FFu << 21)),
-        .single_filter   = true,
-    };
+    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
     ESP_ERROR_CHECK(twai_driver_install(&g_config, &t_config, &f_config));
     ESP_ERROR_CHECK(twai_start());
