@@ -1,4 +1,4 @@
-// pongping — CAN PONG responder for M5Stack ATOM Lite (ESP32-PICO-D4)
+// pongping — CAN PONG responder for 1: 
 //
 // Spec: pongping/specification.md
 //
@@ -48,7 +48,9 @@ static void can_init() {
     twai_general_config_t g_config =
         TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, TWAI_MODE_NORMAL);
 
-    // 500 kbps
+    // 500 kbps — ESP-IDF predefined config: BRP=8, TSEG1=15, TSEG2=4, SJW=3
+    // APB=80MHz → TQ=100ns, 20 TQ × 100ns = 2000ns = 500kbps, SP=80%, SJW=300ns
+    // Larger SJW compensates for the CA-IS3050G isolated transceiver's ~150ns propagation delay.
     twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
 
     // Acceptance filter: pass only standard ID 0x010.
@@ -85,9 +87,15 @@ void setup() {
 void loop() {
     twai_message_t rx;
 
-    // Block up to 500 ms for a frame (filters guarantee ID = 0x010)
-    if (twai_receive(&rx, pdMS_TO_TICKS(500)) != ESP_OK) {
-        // No frame within the window — stay idle (Nucleo sends every 500 ms)
+    esp_err_t rc = twai_receive(&rx, pdMS_TO_TICKS(500));
+    if (rc != ESP_OK) {
+        // Print status on every timeout so we can see counters moving
+        twai_status_info_t st;
+        twai_get_status_info(&st);
+        Serial.printf("timeout  state=%d  rx_err=%u  tx_err=%u  rx_q=%u  rx_missed=%u\n",
+                      (int)st.state,
+                      st.rx_error_counter, st.tx_error_counter,
+                      st.msgs_to_rx, st.rx_missed_count);
         return;
     }
 
